@@ -242,13 +242,13 @@ export default {
         new URL(window.location).searchParams.entries()
     )
 
-    if (windowData.filter) {
-      this.filter = windowData.filter
-    }
+    const VALID_KEYS = ['filter', 'page']
 
-    if (windowData.page) {
-      this.page = windowData.page
-    }
+    VALID_KEYS.forEach((key) => {
+      if (windowData[key]) {
+        this[key] = windowData[key]
+      }
+    })
 
     const tickersData = localStorage.getItem('cryptonomicon-list')
 
@@ -260,8 +260,6 @@ export default {
         )
       })
     }
-
-    setInterval(this.updateTickers, 5000)
   },
 
   async mounted() {
@@ -307,6 +305,13 @@ export default {
       }
 
       return this.graph.map((price) => 10 + ((price - minValue) * 90) / (maxValue - minValue))
+    },
+
+    pageStateOptions() {
+      return {
+        filter: this.filter,
+        page: this.page
+      }
     }
   },
 
@@ -365,6 +370,9 @@ export default {
 
     updateTicker(tickerName, price) {
       this.tickers.filter((t) => t.name === tickerName).forEach((t) => {
+        if (t === this.selectedTicker) {
+          this.graph.push(price)
+        }
         t.price = price
       })
     },
@@ -396,23 +404,6 @@ export default {
       return price > 1 ? price.toFixed(2) : price.toPrecision(2)
     },
 
-    async updateTickers() {
-      // if (!this.tickers.length) {
-      //   return
-      // }
-      //
-      // const exchangeData = await loadTickers(this.tickers.map((t) => t.name))
-      //
-      // this.tickers.forEach((ticker) => {
-      //   const price = exchangeData[ticker.name.toUpperCase()]
-      //
-      //   ticker.price = price ?? '-'
-      //
-      //   this.ticker = ''
-      //   this.duplicate = false
-      // })
-    },
-
     select(ticker) {
       this.selectedTicker = ticker
     },
@@ -424,13 +415,6 @@ export default {
         this.selectedTicker = null
       }
       unsubscribeFromTicker(tickerToRemove.name)
-    },
-
-    pageStateOptions() {
-      return {
-        filter: this.filter,
-        page: this.page
-      }
     }
   },
 
