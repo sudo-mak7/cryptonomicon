@@ -4,10 +4,38 @@ const tickersHandlers = new Map()
 const socket = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${API_KEY}`)
 
 const AGGREGATE_INDEX = '5'
+const INVALID_SUB = '500'
 
 socket.addEventListener('message', (e) => {
-  const {TYPE: type, FROMSYMBOL: currency, PRICE: newPrice} = JSON.parse(e.data)
-  if (type !== AGGREGATE_INDEX || newPrice === undefined) {
+  const {
+    TYPE: type,
+    MESSAGE: message,
+    PARAMETER: parameter,
+    FROMSYMBOL: currency,
+    PRICE: newPrice
+  } = JSON.parse(e.data)
+
+  if (message === 'INVALID_SUB' && type === INVALID_SUB) {
+    const errorCurrency = parameter.split('~')[2]
+    const element = document.getElementsByClassName('text-center')
+
+    for (let i = 0; i < element.length; i++) {
+      if (element[i].outerText.indexOf(errorCurrency) !== -1) {
+        element[i].classList.add('bg-red-100')
+      }
+    }
+  } else if (type === AGGREGATE_INDEX) {
+    const errorCurrency = currency
+    const element = document.getElementsByClassName('bg-red-100')
+
+    for (let i = 0; i < element.length; i++) {
+      if (element[i].outerText.indexOf(errorCurrency) !== -1) {
+        element[i].classList.remove('bg-red-100')
+      }
+    }
+  }
+
+  if (type !== AGGREGATE_INDEX && type !== INVALID_SUB || newPrice === undefined) {
     return
   }
 
@@ -57,3 +85,13 @@ export const unsubscribeFromTicker = (ticker) => {
   tickersHandlers.delete(ticker)
   unsubscribeFromTickerOnWs(ticker)
 }
+
+// export const highlightInvalidCoin = (ticker) => {
+//     const element = document.getElementById('ticker')
+//
+//   // console.log(element.innerText.indexOf('42'))
+//
+//   if (element.innerText.indexOf(ticker) !== -1) {
+//     console.log('INVALID_SUB')
+//   }
+// }
