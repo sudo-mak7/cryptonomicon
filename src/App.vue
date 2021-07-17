@@ -405,7 +405,9 @@ export default {
     },
 
     select(ticker) {
-      this.selectedTicker = ticker
+      if (ticker.price !== '-') {
+        this.selectedTicker = ticker
+      }
     },
 
     handleDelete(tickerToRemove) {
