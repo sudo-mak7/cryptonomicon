@@ -214,7 +214,7 @@
 </template>
 
 <script>
-import { subscribeToTicker, unsubscribeFromTicker } from '@/api'
+import {subscribeToTicker, unsubscribeFromTicker} from '@/api'
 
 export default {
   name: 'App',
@@ -255,9 +255,7 @@ export default {
     if (tickersData) {
       this.tickers = JSON.parse(tickersData)
       this.tickers.forEach((ticker) => {
-        subscribeToTicker(ticker.name, (newPrice) =>
-          this.updateTicker(ticker.name, newPrice)
-        )
+        subscribeToTicker(ticker.name, (newPrice) => this.updateTicker(ticker.name, newPrice))
       })
     }
   },
@@ -391,9 +389,7 @@ export default {
         this.tickers = [...this.tickers, currentTicker]
         this.ticker = ''
         this.filter = ''
-        subscribeToTicker(currentTicker.name, (newPrice) =>
-          this.updateTicker(currentTicker.name, newPrice)
-        )
+        subscribeToTicker(currentTicker.name, (newPrice) => this.updateTicker(currentTicker.name, newPrice))
       }
     },
 
@@ -401,7 +397,7 @@ export default {
       if (price === '-') {
         return price
       }
-      return price > 1 ? price.toFixed(2) : price.toPrecision(2)
+      return price > 1 ? price.toFixed(2) : price?.toPrecision(2)
     },
 
     select(ticker) {

@@ -6,36 +6,36 @@ const socket = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${API_
 const AGGREGATE_INDEX = '5'
 const INVALID_SUB = '500'
 
+let errorCurrency = ''
+let errorCurrencyPriceToBTC = ''
+let errorCurrencyToCorrect = ''
+let priceBTC = null
+
 socket.addEventListener('message', (e) => {
-  const {
+  let {
     TYPE: type,
     MESSAGE: message,
     PARAMETER: parameter,
     FROMSYMBOL: currency,
+    TOSYMBOL: tosymbol,
     PRICE: newPrice
   } = JSON.parse(e.data)
 
-  if (message === 'INVALID_SUB' && type === INVALID_SUB) {
-    const errorCurrency = parameter.split('~')[2]
-    const element = document.getElementsByClassName('text-center')
-
-    for (let i = 0; i < element.length; i++) {
-      if (element[i].outerText.indexOf(errorCurrency) !== -1) {
-        element[i].classList.add('bg-red-100')
-      }
-    }
-  } else if (type === AGGREGATE_INDEX) {
-    const errorCurrency = currency
-    const element = document.getElementsByClassName('bg-red-100')
-
-    for (let i = 0; i < element.length; i++) {
-      if (element[i].outerText.indexOf(errorCurrency) !== -1) {
-        element[i].classList.remove('bg-red-100')
-      }
-    }
+  if (type === AGGREGATE_INDEX && !newPrice) {
+    return
   }
 
-  if (type !== AGGREGATE_INDEX && type !== INVALID_SUB || newPrice === undefined) {
+  highlightRedToErrorCurrency(type, message, currency, newPrice, parameter)
+
+  fixSubscribeToErrorCurrency(type, message, currency, newPrice)
+
+  if (tosymbol === 'BTC') {
+    errorCurrencyPriceToBTC = newPrice
+    getCrossRate(errorCurrencyPriceToBTC, priceBTC)
+    newPrice = errorCurrencyToCorrect
+  }
+
+  if (type !== AGGREGATE_INDEX && type !== INVALID_SUB) {
     return
   }
 
@@ -61,18 +61,87 @@ function sendToWebSocket(message) {
 
 // eslint-disable-next-line require-jsdoc
 function subscribeToTickerOnWs(ticker) {
+  if (errorCurrency !== '' && ticker !== 'BTC') {
+    sendToWebSocket({
+      action: 'SubAdd',
+      subs: [`5~CCCAGG~BTC~USD`]
+    })
+
+    sendToWebSocket({
+      action: 'SubAdd',
+      subs: [`5~CCCAGG~${ticker}~BTC`]
+    })
+
+    if (ticker !== 'BTC') {
+      unsubscribeFromTickerOnWs(ticker)
+    }
+  } else {
+    sendToWebSocket({
+      action: 'SubAdd',
+      subs: [`5~CCCAGG~${ticker}~USD`]
+    })
+  }
+}
+
+// eslint-disable-next-line require-jsdoc
+function unsubscribeFromTickerOnWs(ticker) {
+  if (ticker === errorCurrency) {
+    sendToWebSocket({
+      action: 'SubRemove',
+      subs: [`5~CCCAGG~BTC~USD`]
+    })
+  }
   sendToWebSocket({
-    action: 'SubAdd',
+    action: 'SubRemove',
     subs: [`5~CCCAGG~${ticker}~USD`]
   })
 }
 
 // eslint-disable-next-line require-jsdoc
-function unsubscribeFromTickerOnWs(ticker) {
-  sendToWebSocket({
-    action: 'SubRemove',
-    subs: [`5~CCCAGG~${ticker}~USD`]
-  })
+function highlightRedToErrorCurrency(type, message, currency, newPrice, parameter) {
+  if (type === INVALID_SUB && message === 'INVALID_SUB' && newPrice === undefined) {
+    unsubscribeFromTickerOnWs(currency)
+    errorCurrency = parameter.split('~')[2]
+
+    const element = document.getElementsByClassName('text-center')
+
+    for (let i = 0; i < element.length; i++) {
+      if (element[i].outerText.indexOf(errorCurrency) !== -1) {
+        element[i].classList.add('bg-red-100')
+      }
+    }
+  } else if (type === AGGREGATE_INDEX && newPrice) {
+    const element = document.getElementsByClassName('bg-red-100')
+
+    for (let i = 0; i < element.length; i++) {
+      if (element[i].outerText.indexOf(currency) !== -1) {
+        element[i].classList.remove('bg-red-100')
+      }
+    }
+  }
+}
+
+// eslint-disable-next-line require-jsdoc
+function fixSubscribeToErrorCurrency(type, message, currency, newPrice) {
+  if (type !== ['3', '16'] && message === 'INVALID_SUB') {
+    subscribeToTickerOnWs('BTC')
+  }
+
+  if (currency === 'BTC' && errorCurrency !== '') {
+    priceBTC = newPrice
+
+    let errorCurrencySubscribed = false
+    if (!errorCurrencySubscribed) {
+      subscribeToTickerOnWs(errorCurrency)
+      errorCurrencySubscribed = true
+    }
+  }
+}
+
+// eslint-disable-next-line require-jsdoc
+function getCrossRate(errorCurrencyToBTC, priceBTC) {
+  errorCurrencyToCorrect = priceBTC * errorCurrencyToBTC
+  return errorCurrencyToCorrect
 }
 
 export const subscribeToTicker = (ticker, cb) => {
@@ -85,13 +154,3 @@ export const unsubscribeFromTicker = (ticker) => {
   tickersHandlers.delete(ticker)
   unsubscribeFromTickerOnWs(ticker)
 }
-
-// export const highlightInvalidCoin = (ticker) => {
-//     const element = document.getElementById('ticker')
-//
-//   // console.log(element.innerText.indexOf('42'))
-//
-//   if (element.innerText.indexOf(ticker) !== -1) {
-//     console.log('INVALID_SUB')
-//   }
-// }
