@@ -106,7 +106,7 @@ function highlightRedToErrorCurrency(type, message, currency, newPrice, paramete
     const element = document.getElementsByClassName('text-center')
 
     for (let i = 0; i < element.length; i++) {
-      if (element[i].outerText.indexOf(errorCurrency) !== -1) {
+      if (element[i].innerText.indexOf(errorCurrency) !== -1) {
         element[i].classList.add('bg-red-100')
       }
     }
@@ -114,7 +114,7 @@ function highlightRedToErrorCurrency(type, message, currency, newPrice, paramete
     const element = document.getElementsByClassName('bg-red-100')
 
     for (let i = 0; i < element.length; i++) {
-      if (element[i].outerText.indexOf(currency) !== -1) {
+      if (element[i].innerText.indexOf(currency) !== -1) {
         element[i].classList.remove('bg-red-100')
       }
     }
