@@ -1,92 +1,13 @@
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
-    <div
-        v-if="loading"
-        class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center">
-      <svg class="animate-spin -ml-1 mr-3 h-12 w-12 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
-           viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-        </circle>
-        <path class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-        </path>
-      </svg>
-    </div>
+    <app-loader
+      v-if="loading"
+    />
+
     <div class="container">
-      <section>
-        <div class="flex">
-          <div class="max-w-xs">
-            <label for="wallet" class="block text-sm font-medium text-gray-700">
-              Тикер
-            </label>
-            <div class="mt-1 relative rounded-md shadow-md">
-              <input
-                  v-model="ticker"
-                  @keyup="autocompleteCoins(); resetDuplicateAndInvalidCoinError()"
-                  @keyup.enter="checkInvalidCoin(); add()"
-                  type="text"
-                  name="wallet"
-                  id="wallet"
-                  class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-                  placeholder="Например DOGE"
-                  autocomplete="off"
-              />
-            </div>
-            <div
-                v-if="this.autocompleteResult"
-                class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
-            >
-              <span
-                  v-for="autocompleteCoin in autocomplete.slice(0, 4)"
-                  :key="autocompleteCoin"
-                  @click="ticker = autocompleteCoin; add()"
-                  class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                {{ autocompleteCoin }}
-              </span>
-            </div>
-            <div
-                v-if="duplicate"
-                class="text-sm text-red-600"
-            >
-              Тикер {{ ticker.toUpperCase() }} уже добавлен
-            </div>
-            <div
-                v-if="emptyName"
-                class="text-sm text-red-600"
-            >
-              Тикер не может быть пустым
-            </div>
-            <div
-                v-if="invalidCoin && !emptyName"
-                class="text-sm text-red-600"
-            >
-              Такой тикер нельзя добавить
-            </div>
-          </div>
-        </div>
-        <button
-            @click="checkInvalidCoin(); add()"
-            type="button"
-            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-        >
-          <!-- Heroicon name: solid/mail -->
-          <svg
-              class="-ml-0.5 mr-2 h-6 w-6"
-              xmlns="http://www.w3.org/2000/svg"
-              width="30"
-              height="30"
-              viewBox="0 0 24 24"
-              fill="#ffffff"
-          >
-            <path
-                d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z">
-            </path>
-          </svg>
-          Добавить
-        </button>
-      </section>
+      <add-ticker
+        @add-ticker="add"
+      />
 
       <template v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4"/>
@@ -217,27 +138,27 @@
 </template>
 
 <script>
-import {subscribeToTicker, unsubscribeFromTicker} from '@/api'
+import { subscribeToTicker, unsubscribeFromTicker } from '@/api'
+import AddTicker from '@/components/AddTicker'
+import AppLoader from '@/components/AppLoader'
 
 export default {
   name: 'App',
 
+  components: {
+    AppLoader,
+    AddTicker
+  },
+
   data() {
     return {
-      ticker: '',
       filter: '',
       tickers: [],
       selectedTicker: null,
       graph: [],
       barWidth: 38,
       maxGraphElements: 1,
-      coinlistAPI: [],
       loading: true,
-      duplicate: false,
-      emptyName: false,
-      invalidCoin: false,
-      autocompleteValidCoins: [],
-      autocomplete: [],
       page: 1
     }
   },
@@ -265,11 +186,7 @@ export default {
     }
   },
 
-  async mounted() {
-    const response = await fetch(`https://min-api.cryptocompare.com/data/all/coinlist?summary=true`)
-    this.coinlistAPI = await response.json()
-    this.autocompleteCollectData()
-    this.loading = false
+  mounted() {
     window.addEventListener('resize', this.calculateMaxGraphElements)
   },
 
@@ -278,10 +195,6 @@ export default {
   },
 
   computed: {
-    autocompleteResult() {
-      return Object.keys(this.autocomplete).length
-    },
-
     startIndex() {
       return (this.page - 1) * 8
     },
@@ -296,7 +209,7 @@ export default {
 
     paginatedTickers() {
       if (this.filteredTickers.length) {
-        return this.filteredTickers.slice(this.startIndex, this.endIndex)
+        return this.filteredTickers.slice(this.startIndex, this.endIndex).reverse()
       } else return false
     },
 
@@ -331,58 +244,6 @@ export default {
       this.maxGraphElements = this.$refs.graph.clientWidth / this.barWidth
     },
 
-    checkEmptyName() {
-      return this.emptyName = this.ticker === ''
-    },
-
-    checkInvalidCoin() {
-      if (this.autocompleteResult) {
-        this.invalidCoin = !this.autocompleteValidCoins.find(
-            (c) => c.toUpperCase() === this.ticker.toUpperCase()
-        )
-        return this.autocompleteValidCoins
-      } else this.invalidCoin = true
-      return this.invalidCoin
-    },
-
-    checkDuplicate() {
-      return this.duplicate = this.tickers.find((t) => t.name.toUpperCase() === this.ticker.toUpperCase())
-    },
-
-    autocompleteCollectData() {
-      const symbols = Object
-          .keys(this.coinlistAPI.Data)
-          .map((e) => this.coinlistAPI.Data[e].Symbol)
-
-      const fullNames = Object
-          .keys(this.coinlistAPI.Data)
-          .map((e) => this.coinlistAPI.Data[e].FullName)
-
-      this.autocompleteValidCoins = [...new Set(symbols.concat(fullNames))]
-      this.autocomplete = this.autocompleteValidCoins
-    },
-
-    autocompleteCoins() {
-      this.emptyName = false
-      this.autocomplete = this.autocompleteValidCoins.filter((t) => {
-        return t.toUpperCase()
-            .indexOf(`${this.ticker.toUpperCase()}`) !== -1
-      })
-      this.invalidCoin = false
-      this.checkInvalidCoin()
-    },
-
-    resetDuplicateAndInvalidCoinError() {
-      this.duplicate = false
-      this.invalidCoin = false
-    },
-
-    getSymbol() {
-      if (this.ticker.match(/\(/)) {
-        return this.ticker = this.ticker.substring(this.ticker.lastIndexOf('(') + 1, this.ticker.lastIndexOf(')'))
-      }
-    },
-
     updateTicker(tickerName, price) {
       this.tickers.filter((t) => t.name === tickerName).forEach((t) => {
         if (t === this.selectedTicker) {
@@ -395,22 +256,15 @@ export default {
       })
     },
 
-    add() {
-      this.checkEmptyName()
-      this.getSymbol()
-      this.checkInvalidCoin()
-
-      if (!this.duplicate && !this.invalidCoin && !this.emptyName) {
-        const currentTicker = {
-          name: this.ticker.toUpperCase(),
-          price: '-'
-        }
-
-        this.tickers = [...this.tickers, currentTicker]
-        this.ticker = ''
-        this.filter = ''
-        subscribeToTicker(currentTicker.name, (newPrice) => this.updateTicker(currentTicker.name, newPrice))
+    add(ticker) {
+      const currentTicker = {
+        name: ticker.toUpperCase(),
+        price: '-'
       }
+
+      this.tickers = [...this.tickers, currentTicker]
+      this.filter = ''
+      subscribeToTicker(currentTicker.name, (newPrice) => this.updateTicker(currentTicker.name, newPrice))
     },
 
     formatPrice(price) {
@@ -443,7 +297,6 @@ export default {
 
     selectedTicker() {
       this.graph = []
-
       this.$nextTick().then(this.calculateMaxGraphElements)
     },
 
